@@ -84,6 +84,60 @@ The Call Handling Service should implement robust security measures to protect s
 - Single Pod: Easier to manage, deploy, and monitor. However, it may limit scalability and fault isolation. Could consider this for smaller deployments.
 - Multiple Pods: Facilitates scalability, fault isolation, and independent deployment of different components. However, it increases complexity in managing inter-component communication, service discovery, and resource allocation. Suitable for larger, more complex services requiring high availability and scalability. Also Need to consider communication between components in separate pods, via service discovery/message queue/api calls/shared datastore.
 
+### High/low priority call handling:
+```mermaid
+graph TD;
+subgraph Internet
+A[API Gateway/LB]
+end
+subgraph EKS
+B[Load Balancer]
+subgraph High Priority Workflow
+C1[Input Processing]
+C2[High Priority Call Routing]
+C3[Database Interaction]
+C4[External Service Interaction]
+end
+subgraph Low Priority Workflow
+D1[Input Processing]
+D2[Low Priority Call Routing]
+D3[Database Interaction]
+D4[External Service Interaction]
+end
+end
+subgraph Postgres Database
+E((Postgres))
+end
+subgraph External Services
+F((External Services))
+end
+subgraph Monitoring System
+G((Monitoring))
+end
+A --> B
+B --> C1
+B --> D1
+C1 --> C2
+C1 --> C3
+C1 --> C4
+D1 --> D2
+D1 --> D3
+D1 --> D4
+C2 --> E
+C2 --> F
+C3 --> E
+C3 --> G
+C4 --> F
+D2 --> E
+D2 --> F
+D3 --> E
+D3 --> G
+D4 --> F
+```
+To make the emergecy call more reliable, we can have two workflows, one for high priority calls and one for low priority calls. High priority calls can be routed through a separate workflow with higher priority in the call routing logic, faster processing, and dedicated resources to ensure timely handling. Low priority calls can be routed through a separate workflow with lower priority in the call routing logic, handling normal calls.
+
+For this two workflows they use the same application software but different configurations to handle the calls, for high priority calls we may have more relaxed rules for validation and auditing to ensure faster/reliable processing, as long as we have the mandatory information to handle the call.  
+
 ### Deployment Strategy:
 - Deploy new versions of the service alongside the existing one, gradually routing traffic to the new version.
 - Utilize database migration scripts to manage schema changes during deployments.
